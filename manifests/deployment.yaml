@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syncthing
+  namespace: syncthing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syncthing
+  template:
+    metadata:
+      labels:
+        app: syncthing
+    spec:
+      nodeSelector:
+        app: syncthing
+      hostname: syncthing
+      containers:
+        - name: syncthing
+          image: syncthing/syncthing:latest
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+          ports:
+            - containerPort: 8384
+              name: gui
+            - containerPort: 22000
+              name: sync-tcp
+              protocol: TCP
+            - containerPort: 22000
+              name: sync-udp
+              protocol: UDP
+            - containerPort: 21027
+              name: discovery
+              protocol: UDP
+          volumeMounts:
+            - name: syncthing-data
+              mountPath: /var/syncthing
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fkLsS -m 2 127.0.0.1:8384/rest/noauth/health | grep -o --color=never OK
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -fkLsS -m 2 127.0.0.1:8384/rest/noauth/health | grep -o --color=never OK
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: syncthing-data
+          persistentVolumeClaim:
+            claimName: syncthing-data
